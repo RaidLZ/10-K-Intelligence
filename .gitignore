@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.eggs/
+build/
+dist/
+
+# env / secrets
+.env
+*.local
+
+# data & model caches (downloaded at runtime — never commit filings or weights)
+data/raw/
+data/processed/
+data/cache/
+.cache/
+*.onnx
+
+# tooling
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# eval output
+eval/reports/
+
+# OS
+.DS_Store
+
+# keep the tiny committed fixture
+!data/sample/
+!data/sample/**

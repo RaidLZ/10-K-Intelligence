@@ -1,0 +1,12 @@
+{
+  "income_statement": {
+    "Net sales": {"2023": 383285, "2022": 394328},
+    "Research and development": {"2023": 29915, "2022": 26251},
+    "Operating income": {"2023": 114301, "2022": 119437},
+    "Net income": {"2023": 96995, "2022": 99803}
+  },
+  "balance_sheet": {
+    "Total assets": {"2023": 352583, "2022": 352755},
+    "Cash and cash equivalents": {"2023": 29965, "2022": 23646}
+  }
+}

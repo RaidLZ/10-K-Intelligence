@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tenk-intelligence"
+version = "0.1.0"
+description = "Local-first financial-filings intelligence over SEC EDGAR: hybrid vector + GraphRAG with cited, multi-hop answers."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Raed Lazreg" }]
+
+# Core is intentionally light so CI (and the smoke test) install fast. Every heavy
+# runtime dependency is lazily imported inside the module that needs it and lives in an
+# extra below; `make install` pulls them all via the `all` extra.
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-dotenv>=1.0",
+    "tenacity>=9.0",            # retry flaky network calls
+    "typer>=0.13",             # CLI
+    "rich>=13.9",
+]
+
+[project.optional-dependencies]
+ingest = ["edgartools>=3.0", "docling>=2.0", "pandas>=2.2"]
+index = ["fastembed>=0.4", "qdrant-client>=1.12"]
+graph = ["neo4j>=5.24"]
+llm = ["ollama>=0.4", "openai>=1.50", "anthropic>=0.40"]
+serve = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "streamlit>=1.40"]
+eval = ["ragas>=0.2", "datasets>=3.0"]
+dev = ["pytest>=8.3", "ruff>=0.7"]
+all = [
+    "edgartools>=3.0", "docling>=2.0", "pandas>=2.2",
+    "fastembed>=0.4", "qdrant-client>=1.12", "neo4j>=5.24",
+    "ollama>=0.4", "openai>=1.50", "anthropic>=0.40",
+    "fastapi>=0.115", "uvicorn[standard]>=0.32", "streamlit>=1.40",
+    "ragas>=0.2", "datasets>=3.0",
+]
+
+[project.scripts]
+tenk = "tenk.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tenk"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

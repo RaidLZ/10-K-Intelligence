@@ -1,0 +1,26 @@
+[
+  {
+    "section": "Item 1. Business",
+    "page": 1,
+    "is_table": false,
+    "text": "The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. The Company's reportable segments consist of the Americas, Europe, Greater China, Japan and Rest of Asia Pacific. The Company's products include iPhone, Mac, iPad, and Wearables, Home and Accessories. The Company also offers services including advertising, AppleCare, cloud services, digital content and payment services."
+  },
+  {
+    "section": "Item 1A. Risk Factors",
+    "page": 8,
+    "is_table": false,
+    "text": "The Company's business, reputation, results of operations, financial condition and stock price can be affected by a number of factors. The Company is exposed to global and regional economic conditions, political events, and the highly competitive nature of the markets in which it operates. The Company depends on component and product manufacturing and logistical services provided by outsourcing partners, many of which are located outside of the United States, which concentrates supply and exposes the Company to disruption."
+  },
+  {
+    "section": "Item 7. Management's Discussion and Analysis",
+    "page": 24,
+    "is_table": false,
+    "text": "Total net sales decreased during 2023 compared to 2022 due to lower net sales of Mac and iPhone, partially offset by higher net sales of Services. Research and development expense increased in 2023 compared to 2022, driven primarily by an increase in headcount-related expenses as the Company continued to invest in its long-term product roadmap."
+  },
+  {
+    "section": "Item 8. Financial Statements",
+    "page": 31,
+    "is_table": true,
+    "text": "| (in millions) | 2023 | 2022 |\n|---|---|---|\n| Net sales | 383,285 | 394,328 |\n| Research and development | 29,915 | 26,251 |\n| Operating income | 114,301 | 119,437 |\n| Net income | 96,995 | 99,803 |"
+  }
+]

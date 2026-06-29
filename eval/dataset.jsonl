@@ -1,0 +1,15 @@
+{"id": "q01", "type": "single_hop", "expected_route": "vector", "companies": ["AAPL"], "question": "What does Apple describe as its most significant risk factors in its 2024 10-K?", "ground_truth": ""}
+{"id": "q02", "type": "single_hop", "expected_route": "vector", "companies": ["MSFT"], "question": "How does Microsoft describe its Intelligent Cloud segment?", "ground_truth": ""}
+{"id": "q03", "type": "single_hop", "expected_route": "vector", "companies": ["NVDA"], "question": "What does NVIDIA say about supply concentration in its 2023 filing?", "ground_truth": ""}
+{"id": "q04", "type": "inter_year", "expected_route": "graph", "companies": ["AAPL"], "question": "How did Apple's research and development expense change from 2022 to 2024?", "ground_truth": ""}
+{"id": "q05", "type": "inter_year", "expected_route": "graph", "companies": ["AMZN"], "question": "What was the trend in Amazon's net income from 2022 to 2024?", "ground_truth": ""}
+{"id": "q06", "type": "cross_company", "expected_route": "graph", "companies": ["AAPL", "MSFT"], "question": "How did Apple's R&D spend in 2024 compare to Microsoft's?", "ground_truth": ""}
+{"id": "q07", "type": "cross_company", "expected_route": "graph", "companies": ["NVDA", "AMD"], "question": "Compare NVIDIA's and Amazon's revenue in 2024.", "ground_truth": ""}
+{"id": "q08", "type": "aggregation", "expected_route": "graph", "companies": [], "question": "Which company in the corpus reported the highest net income in 2024?", "ground_truth": ""}
+{"id": "q09", "type": "aggregation", "expected_route": "graph", "companies": [], "question": "Rank the companies by total revenue in 2023.", "ground_truth": ""}
+{"id": "q10", "type": "cross_company", "expected_route": "graph", "companies": ["GOOGL", "META"], "question": "How does Alphabet's operating income compare with Meta's in 2024?", "ground_truth": ""}
+{"id": "q11", "type": "single_hop", "expected_route": "vector", "companies": ["META"], "question": "What does Meta say about its Reality Labs investments?", "ground_truth": ""}
+{"id": "q12", "type": "relationship", "expected_route": "graph", "companies": ["AAPL"], "question": "Which business segments does Apple report?", "ground_truth": ""}
+{"id": "q13", "type": "inter_year", "expected_route": "graph", "companies": ["MSFT"], "question": "How did Microsoft's total assets grow between 2022 and 2024?", "ground_truth": ""}
+{"id": "q14", "type": "agentic", "expected_route": "agentic", "companies": ["AAPL", "NVDA"], "question": "Compare Apple's and NVIDIA's R&D intensity in 2024, and then explain which faces more supply-chain risk based on their filings.", "ground_truth": ""}
+{"id": "q15", "type": "single_hop", "expected_route": "vector", "companies": ["GOOGL"], "question": "What does Alphabet identify as risks related to artificial intelligence?", "ground_truth": ""}
