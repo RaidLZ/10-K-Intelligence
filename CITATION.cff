@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "10-K Intelligence"
+abstract: "Local-first financial-filings intelligence over SEC EDGAR: a hybrid vector + GraphRAG system with Corrective-RAG and cited, multi-hop answers."
+type: software
+authors:
+  - family-names: Lazreg
+    given-names: Raed
+repository-code: "https://github.com/RaidLZ/10-K-Intelligence"
+url: "https://github.com/RaidLZ/10-K-Intelligence"
+license: MIT
+version: 0.1.0
+date-released: "2026-06-30"
+keywords:
+  - rag
+  - graphrag
+  - sec-edgar
+  - llm
+  - neo4j
+  - qdrant
