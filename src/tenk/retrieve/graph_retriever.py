@@ -90,7 +90,7 @@ def _relationship_facts(graph: Graph, query: str) -> list[RetrievedContext]:
     try:
         rows = graph.run(cypher)
     except Exception as exc:
-        print(f"  ! generated Cypher failed: {exc}")
+        print(f"  · graph relationship query didn't run ({type(exc).__name__}); falling back")
         return []
     contexts = []
     for i, row in enumerate(rows[:25]):

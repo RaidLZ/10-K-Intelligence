@@ -30,34 +30,62 @@ def _find_10k(ticker: str, year: int):
 
     company = Company(ticker)
     filings = company.get_filings(form="10-K")
+    # Prefer the filing whose fiscal period (period_of_report) falls in `year`.
+    fallback = None
     for f in filings:
-        # filing_date is shortly after fiscal year end; match on report year.
+        period = str(getattr(f, "period_of_report", "") or "")
+        if period.startswith(str(year)):
+            return f
+        # Fallback: a 10-K *filed* during `year` (covers missing/odd period data).
         fdate = str(getattr(f, "filing_date", ""))
-        if fdate.startswith(str(year)) or fdate.startswith(str(year + 1)):
-            # prefer the filing reporting ON `year`
-            period = str(getattr(f, "period_of_report", "") or "")
-            if period.startswith(str(year)) or fdate.startswith(str(year + 1)):
-                return f
-    return None
+        if fallback is None and fdate.startswith(str(year)):
+            fallback = f
+    return fallback
 
 
-def _financials_to_dict(tenk) -> dict:
-    """Best-effort extraction of the three statements as {statement: {line: {year: value}}}."""
+def _statement_year_dict(df, year: int) -> dict:
+    """Pull one fiscal year's top-level line items from an edgartools statement dataframe.
+
+    The dataframe has a `label` column, metadata flags (`abstract`/`dimension`), and one
+    column per period (e.g. "2023-09-30 (FY)"). We keep non-abstract, non-dimensional rows
+    (the real line items, not the product/segment breakdowns) for the matching year.
+    """
+    col = next((c for c in df.columns if str(c).strip().startswith(str(year))), None)
+    if col is None:
+        return {}
     out: dict = {}
-    fin = getattr(tenk, "financials", None)
-    if fin is None:
-        return out
-    statements = {
-        "income_statement": getattr(fin, "income", None) or getattr(fin, "income_statement", None),
-        "balance_sheet": getattr(fin, "balance_sheet", None),
-        "cash_flow": getattr(fin, "cashflow", None) or getattr(fin, "cash_flow", None),
-    }
-    for name, stmt in statements.items():
-        if stmt is None:
+    for _, row in df.iterrows():
+        if bool(row.get("abstract")) or bool(row.get("dimension")):
             continue
+        label = str(row.get("label") or "").strip()
+        val = row.get(col)
+        if label and val is not None and val == val:  # val == val filters NaN
+            out.setdefault(label, {})[str(year)] = float(val)
+    return out
+
+
+def _financials_for_year(ticker: str, year: int) -> dict:
+    """Extract income / balance / cash-flow line items for `year` via edgartools XBRL.
+
+    Uses the company-level financials (covers the most recent fiscal years and avoids the
+    per-filing SGML fetch). Returns {statement: {line: {year: value}}}.
+    """
+    from edgar import Company
+
+    fin = Company(ticker).get_financials()
+    if fin is None:
+        return {}
+    statements = {
+        "income_statement": fin.income_statement,
+        "balance_sheet": fin.balance_sheet,
+        "cash_flow": fin.cashflow_statement,
+    }
+    out: dict = {}
+    for name, method in statements.items():
         try:
-            df = stmt.to_dataframe() if hasattr(stmt, "to_dataframe") else stmt
-            out[name] = json.loads(df.to_json(orient="index"))
+            data = _statement_year_dict(method().to_dataframe(), year)
+            if data:
+                out[name] = data
         except Exception:
             continue
     return out
@@ -90,7 +118,7 @@ def fetch_filing(ticker: str, year: int, raw_dir: Path | None = None) -> dict | 
     # structured financials from XBRL
     financials = {}
     try:
-        financials = _financials_to_dict(f.obj())
+        financials = _financials_for_year(ticker, year)
     except Exception as exc:
         print(f"  ! financials extraction failed for {ticker} {year}: {exc}")
 

@@ -1,7 +1,7 @@
 """Provider-agnostic LLM wrapper.
 
 One interface, three backends. Default is local Ollama (Qwen2.5-3B); set
-`LLM_PROVIDER=openai` (or `anthropic`) with a key to upgrade the heavy steps.
+`LLM_PROVIDER=openai` (or `azure`) with a key to upgrade the heavy steps.
 
     from tenk.llm import get_llm
     llm = get_llm()
@@ -20,7 +20,7 @@ from tenk.config import settings
 
 
 class LLM:
-    """Thin abstraction over Ollama / OpenAI / Anthropic chat completions."""
+    """Thin abstraction over Ollama / OpenAI / Azure OpenAI chat completions."""
 
     def __init__(self, provider: str | None = None, model: str | None = None):
         self.provider = (provider or settings.llm_provider).lower()
@@ -29,8 +29,8 @@ class LLM:
             self.model = model or settings.ollama_model
         elif self.provider == "openai":
             self.model = model or settings.openai_model
-        elif self.provider == "anthropic":
-            self.model = model or settings.anthropic_model
+        elif self.provider == "azure":
+            self.model = model or settings.azure_deployment
         else:
             raise ValueError(f"Unknown LLM_PROVIDER: {self.provider!r}")
 
@@ -41,7 +41,7 @@ class LLM:
             return self._ollama(prompt, system, temperature)
         if self.provider == "openai":
             return self._openai(prompt, system, temperature)
-        return self._anthropic(prompt, system, temperature)
+        return self._azure(prompt, system, temperature)
 
     def json(self, prompt: str, system: str | None = None) -> dict[str, Any]:
         """Complete and parse the first JSON object/array found in the reply."""
@@ -78,21 +78,27 @@ class LLM:
         )
         return resp.choices[0].message.content or ""
 
-    def _anthropic(self, prompt: str, system: str | None, temperature: float) -> str:
-        import anthropic
+    def _azure(self, prompt: str, system: str | None, temperature: float) -> str:
+        from openai import AzureOpenAI
 
         if self._client is None:
-            if not settings.anthropic_api_key:
-                raise RuntimeError("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is empty.")
-            self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        resp = self._client.messages.create(
-            model=self.model,
-            max_tokens=2048,
-            temperature=temperature,
-            system=system or "",
-            messages=[{"role": "user", "content": prompt}],
+            if not settings.azure_openai_api_key or not settings.azure_openai_endpoint:
+                raise RuntimeError(
+                    "LLM_PROVIDER=azure but AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT is empty."
+                )
+            self._client = AzureOpenAI(
+                api_key=settings.azure_openai_api_key,
+                azure_endpoint=settings.azure_openai_endpoint,
+                api_version=settings.azure_openai_api_version,
+            )
+        messages = ([{"role": "system", "content": system}] if system else []) + [
+            {"role": "user", "content": prompt}
+        ]
+        # On Azure, `model` is the *deployment* name.
+        resp = self._client.chat.completions.create(
+            model=self.model, messages=messages, temperature=temperature
         )
-        return "".join(block.text for block in resp.content if block.type == "text")
+        return resp.choices[0].message.content or ""
 
 
 def _extract_json(raw: str) -> dict[str, Any]:

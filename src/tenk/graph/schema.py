@@ -30,10 +30,14 @@ class Graph:
     def __init__(self, uri: str | None = None, user: str | None = None, password: str | None = None):
         from neo4j import GraphDatabase
 
-        self._driver = GraphDatabase.driver(
-            uri or settings.neo4j_uri,
-            auth=(user or settings.neo4j_user, password or settings.neo4j_password),
-        )
+        kwargs = {"auth": (user or settings.neo4j_user, password or settings.neo4j_password)}
+        try:
+            # silence verbose server notifications (e.g. from exploratory LLM-generated Cypher)
+            self._driver = GraphDatabase.driver(
+                uri or settings.neo4j_uri, notifications_min_severity="OFF", **kwargs
+            )
+        except Exception:  # older drivers don't support the kwarg
+            self._driver = GraphDatabase.driver(uri or settings.neo4j_uri, **kwargs)
 
     def run(self, cypher: str, **params):
         with self._driver.session() as session:

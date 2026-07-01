@@ -24,14 +24,17 @@ class Settings(BaseSettings):
     # SEC EDGAR requires a contact identity for bulk access.
     sec_identity: str = Field(default="Anonymous example@example.com", alias="SEC_IDENTITY")
 
-    # LLM provider
+    # LLM provider: ollama | openai | azure
     llm_provider: str = Field(default="ollama", alias="LLM_PROVIDER")
     ollama_host: str = Field(default="http://localhost:11434", alias="OLLAMA_HOST")
     ollama_model: str = Field(default="qwen2.5:3b-instruct", alias="OLLAMA_MODEL")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
-    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(default="claude-haiku-4-5-20251001", alias="ANTHROPIC_MODEL")
+    # Azure OpenAI (the deployment name IS the model id in the API call)
+    azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
+    azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
+    azure_openai_api_version: str = Field(default="2024-05-01-preview", alias="AZURE_OPENAI_API_VERSION")
+    azure_deployment: str = Field(default="gpt-oss-120b", alias="AZURE_OPENAI_DEPLOYMENT")
 
     # Embeddings (FastEmbed)
     embed_model: str = Field(default="BAAI/bge-base-en-v1.5", alias="EMBED_MODEL")

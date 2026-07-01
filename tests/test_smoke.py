@@ -137,6 +137,23 @@ def test_classify_offline_heuristics():
     assert res["reason"] == "heuristic"
 
 
+def test_llm_provider_wiring():
+    import pytest
+
+    from tenk.config import settings
+    from tenk.llm import LLM
+
+    # each provider selects the right model id without any network call
+    assert LLM(provider="ollama").model == settings.ollama_model
+    assert LLM(provider="openai").model == settings.openai_model
+    assert LLM(provider="azure").model == settings.azure_deployment == "gpt-oss-120b"
+    # explicit model override wins
+    assert LLM(provider="azure", model="my-deploy").model == "my-deploy"
+    # unknown provider is rejected
+    with pytest.raises(ValueError):
+        LLM(provider="bogus")
+
+
 def test_eval_dataset_wellformed():
     path = REPO / "eval" / "dataset.jsonl"
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]

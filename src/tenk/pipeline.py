@@ -43,6 +43,17 @@ def _decompose(query: str) -> list[str]:
         return [query]
 
 
+def _retrieve_with_fallback(query: str, route: str, tickers: list[str], years: list[int]):
+    """Retrieve for the chosen route; if a graph route comes back empty (e.g. a narrative
+    question misrouted, or shaky LLM Cypher), gracefully fall back to vector search."""
+    contexts, notes = corrective_retrieve(query, _retrieve_fn(route, tickers, years))
+    if not contexts and route == "graph":
+        contexts, vnotes = corrective_retrieve(query, _retrieve_fn("vector", tickers, years))
+        if contexts:
+            return "vector", contexts, f"graph empty → vector fallback; {vnotes}"
+    return route, contexts, notes
+
+
 def answer_question(query: str) -> Answer:
     cls = classify(query)
     route, tickers, years = cls["route"], cls["tickers"], cls["years"]
@@ -52,14 +63,14 @@ def answer_question(query: str) -> Answer:
         trace = []
         for sq in _decompose(query):
             sub = classify(sq)
-            fn = _retrieve_fn(sub["route"], sub["tickers"] or tickers, sub["years"] or years)
-            ctx, _ = corrective_retrieve(sq, fn)
+            sub_route, ctx, _ = _retrieve_with_fallback(
+                sq, sub["route"], sub["tickers"] or tickers, sub["years"] or years
+            )
             all_ctx.extend(ctx)
-            trace.append(f"{sq!r}→{sub['route']}")
+            trace.append(f"{sq!r}→{sub_route}")
         notes = f"route=agentic ({cls['reason']}); subq: " + "; ".join(trace)
         return generate_answer(query, _dedup(all_ctx), "agentic", notes)
 
-    fn = _retrieve_fn(route, tickers, years)
-    contexts, corr_notes = corrective_retrieve(query, fn)
+    route, contexts, corr_notes = _retrieve_with_fallback(query, route, tickers, years)
     notes = f"route={route} ({cls['reason']}); {corr_notes}"
     return generate_answer(query, contexts, route, notes)
