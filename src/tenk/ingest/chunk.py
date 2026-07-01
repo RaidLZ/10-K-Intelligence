@@ -31,29 +31,53 @@ def _window(text: str, size: int = WORDS_PER_CHUNK, overlap: int = OVERLAP_WORDS
 
 
 def chunk_elements(ticker: str, year: int, source_url: str, elements: list[dict]) -> list[Chunk]:
+    """Coalesce consecutive same-section narrative into ~WORDS_PER_CHUNK windows.
+
+    A structure-aware parser (Docling) emits many small elements — a lone paragraph or
+    list item. Embedding each on its own is slow and gives context-poor chunks, so we
+    accumulate them within a section and window the joined text. Tables always stand alone
+    (splitting a table destroys its meaning) and break the current run.
+    """
     chunks: list[Chunk] = []
+
+    def _emit(section: str, page: int | None, text: str, is_table: bool) -> None:
+        chunks.append(
+            Chunk(
+                id=f"{ticker}-{year}-{len(chunks)}",
+                ticker=ticker, year=year, section=section, page=page,
+                is_table=is_table, text=text, source_url=source_url,
+            )
+        )
+
+    run_section: str | None = None
+    run_page: int | None = None
+    run_parts: list[str] = []
+
+    def _flush() -> None:
+        nonlocal run_parts
+        if run_parts:
+            for piece in _window(" ".join(run_parts)):
+                if len(piece.split()) >= 8:   # drop boilerplate fragments
+                    _emit(run_section or "", run_page, piece, is_table=False)
+        run_parts = []
+
     for el in elements:
         section = el.get("section", "")
         page = el.get("page")
+        text = (el.get("text") or "").strip()
         if el.get("is_table"):
-            chunks.append(
-                Chunk(
-                    id=f"{ticker}-{year}-{len(chunks)}",
-                    ticker=ticker, year=year, section=section, page=page,
-                    is_table=True, text=el["text"], source_url=source_url,
-                )
-            )
+            _flush()
+            run_section = None
+            if text:
+                _emit(section, page, text, is_table=True)
             continue
-        for piece in _window(el.get("text", "")):
-            if len(piece.split()) < 8:   # drop boilerplate fragments
-                continue
-            chunks.append(
-                Chunk(
-                    id=f"{ticker}-{year}-{len(chunks)}",
-                    ticker=ticker, year=year, section=section, page=page,
-                    is_table=False, text=piece, source_url=source_url,
-                )
-            )
+        if not text:
+            continue
+        if section != run_section:   # section boundary → never straddle it
+            _flush()
+            run_section, run_page = section, page
+        run_parts.append(text)
+    _flush()
     return chunks
 
 

@@ -45,6 +45,19 @@ class RetrievedContext(BaseModel):
     retriever: str = "vector"   # "vector" | "graph"
 
 
+class TraceStep(BaseModel):
+    """One observable step in the answer pipeline, with how long it took.
+
+    Collected end-to-end so the CLI can print a trace and the UI can show a live
+    timeline of exactly what the system did to produce an answer.
+    """
+
+    name: str                   # "llm" | "route" | "retrieve" | "grade" | "rewrite" | "generate" | ...
+    detail: str = ""            # human-readable one-liner
+    ms: float = 0.0             # wall-clock since the previous step
+    meta: dict = Field(default_factory=dict)
+
+
 Route = str  # "vector" | "graph" | "agentic"
 
 
@@ -55,3 +68,4 @@ class Answer(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     contexts: list[RetrievedContext] = Field(default_factory=list)
     notes: str = ""             # e.g. corrective-RAG actions taken
+    steps: list[TraceStep] = Field(default_factory=list)  # pipeline trace

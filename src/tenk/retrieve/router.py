@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 
+from tenk import trace
 from tenk.config import settings
 from tenk.llm import get_llm
 
@@ -83,4 +84,10 @@ def classify(query: str) -> dict:
             route, reason = "vector", "fallback (default)"
     if route not in {"vector", "graph", "agentic"}:
         route = "vector"
+    scope = ""
+    if tickers:
+        scope += " · " + ",".join(tickers)
+    if years:
+        scope += " · " + ",".join(str(y) for y in years)
+    trace.step("route", f"{route} ({reason}){scope}", route=route, tickers=tickers, years=years)
     return {"route": route, "tickers": tickers, "years": years, "reason": reason}

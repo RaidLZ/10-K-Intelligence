@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+from tenk import trace
 from tenk.llm import get_llm
 from tenk.models import Answer, Citation, RetrievedContext
 
@@ -32,6 +33,15 @@ def _format_contexts(contexts: list[RetrievedContext]) -> str:
     return "\n\n".join(lines)
 
 
+# Some models don't emit plain [n] citations. gpt-oss uses 【n†…】; others use ⟦n⟧ or (n).
+# Normalise those to [n] so the citation parser — and the reader — see one consistent form.
+_CITE_VARIANTS = re.compile(r"【\s*(\d+)\s*(?:†[^】]*)?】|⟦\s*(\d+)\s*⟧")
+
+
+def normalise_citations(text: str) -> str:
+    return _CITE_VARIANTS.sub(lambda m: f"[{m.group(1) or m.group(2)}]", text)
+
+
 def _citations_from_text(text: str, contexts: list[RetrievedContext]) -> list[Citation]:
     used = sorted({int(n) for n in re.findall(r"\[(\d+)\]", text) if 1 <= int(n) <= len(contexts)})
     citations = []
@@ -48,15 +58,22 @@ def _citations_from_text(text: str, contexts: list[RetrievedContext]) -> list[Ci
 
 def generate_answer(query: str, contexts: list[RetrievedContext], route: str = "vector", notes: str = "") -> Answer:
     if not contexts:
+        trace.step("generate", "no context — declined to answer")
         return Answer(
             question=query, route=route,
             text="I don't have enough indexed filing data to answer that. Try `make ingest` / `make index` first, or rephrase.",
             notes=notes,
         )
-    text = get_llm().complete(
-        _PROMPT.format(q=query, ctx=_format_contexts(contexts)), system=_SYSTEM
+    llm = get_llm()
+    text = normalise_citations(
+        llm.complete(_PROMPT.format(q=query, ctx=_format_contexts(contexts)), system=_SYSTEM)
+    )
+    citations = _citations_from_text(text, contexts)
+    trace.step(
+        "generate",
+        f"{llm.provider} · {llm.model} · {len(citations)} citations from {len(contexts)} contexts",
     )
     return Answer(
         question=query, text=text, route=route,
-        citations=_citations_from_text(text, contexts), contexts=contexts, notes=notes,
+        citations=citations, contexts=contexts, notes=notes,
     )
