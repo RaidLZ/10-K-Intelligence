@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 
+from tenk import trace
 from tenk.config import settings
 from tenk.graph.schema import Graph
 from tenk.llm import get_llm
@@ -113,5 +114,14 @@ def retrieve(query: str, tickers: list[str] | None = None, years: list[int] | No
         if keywords:
             facts = _facts(graph, tickers, years, keywords)
             if facts:
+                trace.step(
+                    "retrieve", f"graph · metric path · {len(facts)} facts",
+                    retriever="graph", path="metric", n=len(facts),
+                )
                 return facts
-        return _relationship_facts(graph, query)
+        rel = _relationship_facts(graph, query)
+        trace.step(
+            "retrieve", f"graph · relationship path · {len(rel)} facts",
+            retriever="graph", path="relationship", n=len(rel),
+        )
+        return rel

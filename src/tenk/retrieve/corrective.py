@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from tenk import trace
 from tenk.config import settings
 from tenk.llm import get_llm
 from tenk.models import RetrievedContext
@@ -37,10 +38,13 @@ def grade(query: str, contexts: list[RetrievedContext]) -> list[int]:
     try:
         data = get_llm().json(_GRADE_PROMPT.format(q=query, ctx=listing), system=_GRADE_SYSTEM)
         idx = [int(i) for i in data.get("relevant", []) if 0 <= int(i) < len(contexts)]
+        trace.step("grade", f"kept {len(idx)}/{len(contexts)} contexts (LLM)")
         return idx
     except Exception:
         # score-based fallback: keep anything above threshold (graph facts score 1.0)
-        return [i for i, c in enumerate(contexts) if c.score >= settings.relevance_threshold]
+        idx = [i for i, c in enumerate(contexts) if c.score >= settings.relevance_threshold]
+        trace.step("grade", f"kept {len(idx)}/{len(contexts)} contexts (score ≥ {settings.relevance_threshold})")
+        return idx
 
 
 def rewrite(query: str) -> str:
@@ -60,6 +64,7 @@ def corrective_retrieve(query: str, retrieve_fn: RetrieveFn) -> tuple[list[Retri
     if not relevant:
         new_q = rewrite(query)
         if new_q and new_q != query:
+            trace.step("rewrite", f"weak retrieval → {new_q!r}")
             notes.append(f"corrective: rewrote query → {new_q!r}")
             contexts = retrieve_fn(new_q)
             relevant = grade(new_q, contexts)

@@ -78,6 +78,23 @@ def test_citation_parsing():
     assert [c.ticker for c in cits] == ["AAPL", "MSFT"]
 
 
+def test_citation_normalisation():
+    from tenk.generate.answer import _citations_from_text, normalise_citations
+    from tenk.models import Chunk, RetrievedContext
+
+    # gpt-oss emits 【n†…】; the parser only understands [n]. Normalise, then parse.
+    raw = "Apple rose【1†L1】while Microsoft【2†L4】grew, per ⟦1⟧."
+    norm = normalise_citations(raw)
+    assert "【" not in norm and "⟦" not in norm
+    assert "[1]" in norm and "[2]" in norm
+
+    contexts = [
+        RetrievedContext(chunk=Chunk(id="a", ticker="AAPL", year=2024, section="XBRL", text="R&D")),
+        RetrievedContext(chunk=Chunk(id="b", ticker="MSFT", year=2024, section="XBRL", text="R&D")),
+    ]
+    assert [c.ticker for c in _citations_from_text(norm, contexts)] == ["AAPL", "MSFT"]
+
+
 def test_json_extraction():
     from tenk.llm import _extract_json
 
@@ -102,6 +119,21 @@ def test_section_normalisation():
     assert normalise_section("ITEM 1A. Risk Factors") == "Item 1A. Risk Factors"
     assert normalise_section("Item 7 — Management's Discussion").startswith("Item 7")
     assert normalise_section("Company Overview") == "Company Overview"
+
+
+def test_section_heading_detection():
+    from tenk.ingest.parse import section_heading
+
+    # number-only heading (Docling splits the title onto the next line) → canonical title
+    assert section_heading("Item 1A.") == "Item 1A. Risk Factors"
+    assert section_heading("Item 7.") == "Item 7. Management's Discussion and Analysis"
+    # a long official heading is accepted because it starts with the canonical title
+    long7 = "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations"
+    assert section_heading(long7) == "Item 7. Management's Discussion and Analysis"
+    # inline cross-references are NOT headings (must not reset the section)
+    assert section_heading("Item 15. of this Annual Report on Form 10-K for further discussion") is None
+    # ordinary prose is not a heading
+    assert section_heading("The following risk factors should be considered.") is None
 
 
 def test_chunk_window_overlap_and_filters():
@@ -152,6 +184,26 @@ def test_llm_provider_wiring():
     # unknown provider is rejected
     with pytest.raises(ValueError):
         LLM(provider="bogus")
+
+
+def test_trace_records_steps_and_is_noop_when_inactive():
+    from tenk import trace
+    from tenk.models import Answer
+
+    # No active tracer -> recording is a harmless no-op (what the other tests rely on).
+    trace.step("route", "dropped")
+
+    seen = []
+    tracer = trace.start(on_step=seen.append)
+    trace.step("llm", "provider=azure · model=gpt-oss-120b")
+    trace.step("retrieve", "graph · 6 facts", retriever="graph", n=6)
+
+    assert len(tracer.steps) == 2
+    assert len(seen) == 2  # live callback fired for each
+    assert tracer.steps[0].name == "llm"
+    assert all(isinstance(s.ms, float) for s in tracer.steps)
+    # steps must round-trip through the Answer model (API JSON + UI depend on it)
+    assert len(Answer(question="q", text="t", steps=tracer.steps).model_dump()["steps"]) == 2
 
 
 def test_eval_dataset_wellformed():

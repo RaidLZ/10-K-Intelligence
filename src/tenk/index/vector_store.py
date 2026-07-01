@@ -48,10 +48,34 @@ class VectorStore:
                 sparse_vectors_config={SPARSE: models.SparseVectorParams(modifier=models.Modifier.IDF)},
             )
 
-    def index_chunks(self, chunks: list[Chunk], batch_size: int = 64) -> int:
+    def existing_ids(self) -> set[str]:
+        """All point IDs currently in the collection (for incremental indexing)."""
+        if not self.client.collection_exists(self.collection):
+            return set()
+        ids: set[str] = set()
+        offset = None
+        while True:
+            points, offset = self.client.scroll(
+                self.collection, with_payload=False, with_vectors=False,
+                limit=1000, offset=offset,
+            )
+            ids.update(str(p.id) for p in points)
+            if offset is None:
+                break
+        return ids
+
+    def index_chunks(self, chunks: list[Chunk], batch_size: int = 64, incremental: bool = False) -> int:
         from qdrant_client import models
 
-        self.ensure_collection(recreate=True)
+        if incremental:
+            # Keep what's there; embed only chunks not already indexed (resume/extend).
+            self.ensure_collection(recreate=False)
+            have = self.existing_ids()
+            before = len(chunks)
+            chunks = [c for c in chunks if _point_id(c.id) not in have]
+            print(f"  … incremental: {before - len(chunks)} already indexed, {len(chunks)} to add")
+        else:
+            self.ensure_collection(recreate=True)
         total = 0
         for start in range(0, len(chunks), batch_size):
             batch = chunks[start : start + batch_size]
@@ -77,18 +101,21 @@ class VectorStore:
 
     def search(
         self, query: str, top_k: int | None = None, final_k: int | None = None,
-        tickers: list[str] | None = None,
+        tickers: list[str] | None = None, years: list[int] | None = None,
     ) -> list[RetrievedContext]:
         from qdrant_client import models
 
         top_k = top_k or settings.top_k
         final_k = final_k or settings.final_k
 
-        query_filter = None
+        conditions = []
         if tickers:
-            query_filter = models.Filter(
-                must=[models.FieldCondition(key="ticker", match=models.MatchAny(any=tickers))]
+            conditions.append(models.FieldCondition(key="ticker", match=models.MatchAny(any=tickers)))
+        if years:
+            conditions.append(
+                models.FieldCondition(key="year", match=models.MatchAny(any=[int(y) for y in years]))
             )
+        query_filter = models.Filter(must=conditions) if conditions else None
 
         sparse_q = embed_query_sparse(query)
         result = self.client.query_points(

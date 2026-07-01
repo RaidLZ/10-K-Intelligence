@@ -64,17 +64,8 @@ def _statement_year_dict(df, year: int) -> dict:
     return out
 
 
-def _financials_for_year(ticker: str, year: int) -> dict:
-    """Extract income / balance / cash-flow line items for `year` via edgartools XBRL.
-
-    Uses the company-level financials (covers the most recent fiscal years and avoids the
-    per-filing SGML fetch). Returns {statement: {line: {year: value}}}.
-    """
-    from edgar import Company
-
-    fin = Company(ticker).get_financials()
-    if fin is None:
-        return {}
+def _statements_for_year(fin, year: int) -> dict:
+    """Pull income / balance / cash-flow line items for `year` from a Financials object."""
     statements = {
         "income_statement": fin.income_statement,
         "balance_sheet": fin.balance_sheet,
@@ -89,6 +80,37 @@ def _financials_for_year(ticker: str, year: int) -> dict:
         except Exception:
             continue
     return out
+
+
+def _financials_for_year(ticker: str, year: int, filing=None) -> dict:
+    """Extract income / balance / cash-flow line items for `year` via edgartools XBRL.
+
+    Prefer the year's **own** 10-K: its statements are centred on that fiscal year, so an
+    older year (e.g. 2022) is present. The company-level `get_financials()` only exposes the
+    ~3 most recent years, so it silently drops older years — we keep it only as a fallback.
+    Returns {statement: {line: {year: value}}}.
+    """
+    from edgar import Company
+
+    # 1) The filing for this exact year (correct source for historical years).
+    if filing is not None:
+        try:
+            fin = filing.obj().financials
+            if fin is not None:
+                data = _statements_for_year(fin, year)
+                if data:
+                    return data
+        except Exception:
+            pass  # fall through to the company-level attempt
+
+    # 2) Fallback: company-level latest financials (works when `year` is recent).
+    try:
+        fin = Company(ticker).get_financials()
+        if fin is not None:
+            return _statements_for_year(fin, year)
+    except Exception:
+        pass
+    return {}
 
 
 def fetch_filing(ticker: str, year: int, raw_dir: Path | None = None) -> dict | None:
@@ -115,10 +137,10 @@ def fetch_filing(ticker: str, year: int, raw_dir: Path | None = None) -> dict | 
                 continue
     (dest / "filing.html").write_text(html or "", encoding="utf-8")
 
-    # structured financials from XBRL
+    # structured financials from XBRL (from this year's own filing)
     financials = {}
     try:
-        financials = _financials_for_year(ticker, year)
+        financials = _financials_for_year(ticker, year, filing=f)
     except Exception as exc:
         print(f"  ! financials extraction failed for {ticker} {year}: {exc}")
 
